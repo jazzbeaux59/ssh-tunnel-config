@@ -1,210 +1,198 @@
-# SSH Tunnel Configuration Toolkit (YAML Edition)
+# SSH Tunnel Project
 
-This project simplifies the setup and management of SSH tunnels from a local development machine to services on an airgapped network, via a designated jump server.
+This project simplifies the creation of persistent SSH tunnels through a jump server to access services inside an airgapped network.
 
----
+## Features
 
-## 🔧 How It Works
+- Centralized configuration of tunnel destinations
+- Template-driven generation of startup scripts
+- One-command startup via Makefile
+- Supports web, RDP, and SSH access to remote airgapped hosts
+- Lint check to verify `.bashrc_tunnels.txt` is up-to-date
+- Python-only (no shell script dependencies)
 
-You define your tunnels in a YAML config file (`config/tunnel-hosts.yaml`), and use a Python script to generate a shell helper script (`.bashrc_tunnels.txt`) with per-service SSH tunnel functions. These tunnels can be started, stopped, tested, and linted using a simple `Makefile`.
+## Directory Structure
 
----
-
-## 📁 File Structure
-
-```text
+```
 .
-├── .bashrc_tunnels.txt          # Auto-generated from YAML
 ├── config/
-│   └── tunnel-hosts.yaml        # User-defined list of tunnel targets (generated or customized)
+│   └── tunnel-hosts.yaml
 ├── templates/
-│   └── tunnel-hosts.sample.yaml # Sample starting config for new setups
+│   └── tunnel-hosts.sample.yaml
+│   └── .bashrc_tunnels.txt.j2
 ├── scripts/
-│   ├── generate_bashrc.py       # YAML → Bashrc tunnel generator
-│   └── shutdown_tunnels.sh      # Graceful shutdown of known tunnels
-├── Makefile                     # Automation commands
+│   └── generate_bashrc.py
+├── .bashrc_tunnels.txt
+├── Makefile
 └── README.md
 ```
 
----
+## Usage
 
-## ✅ Getting Started
-
-### 1. **Initialize your configuration**
-
-Run:
+### 1. Initialize
 
 ```bash
 make init
 ```
 
-This will:
-- Create the `config/` directory if it doesn’t exist
-- Copy the sample file from `templates/tunnel-hosts.sample.yaml` to `config/tunnel-hosts.yaml`
-- Prompt you before overwriting if `tunnel-hosts.yaml` already exists
+- Copies `tunnel-hosts.sample.yaml` to `config/tunnel-hosts.yaml`
+- If the file already exists, prompts before overwriting
+- **Reminder:** Edit `config/tunnel-hosts.yaml` to match your environment
 
-> 📝 **Important:** You must **edit and customize** `config/tunnel-hosts.yaml` before proceeding.  
-> Define the tunnels you need by setting `name`, `local_port`, `target_ip`, and `target_port`.
-
----
-
-### 2. **Generate the helper script**
-
-Once your YAML config is customized, run:
+### 2. Generate tunnel script
 
 ```bash
 make generate
 ```
 
-This produces `.bashrc_tunnels.txt`, which defines shell functions like `start_tunnel_maas` for each configured tunnel.
+Generates `.bashrc_tunnels.txt` based on the current YAML config.
 
----
-
-### 3. **Start and stop tunnels**---
-
-## 🌐 Accessing Remote Services After Tunneling
-
-Once your tunnels are active (via `make start` or `source .bashrc_tunnels.txt && start_tunnel_<name>`), the target services are reachable locally on your machine.
-
----
-
-### 🌍 Web Access Example
-
-If your airgapped server runs a web UI (e.g., MAAS at `192.168.227.3:5240`) and your tunnel is defined like this in `tunnel-hosts.yaml`:
-
-```yaml
-- name: maas
-  local_port: 15240
-  target_ip: 192.168.227.3
-  target_port: 5240
-```
-
-Then after running:
+### 3. Start tunnels
 
 ```bash
-source .bashrc_tunnels.txt
-start_tunnel_maas
+make start
 ```
 
-You can visit the airgapped service using your **local browser**:
+Starts all defined SSH tunnels in the background.
 
-```
-http://localhost:15240/
-```
-
----
-
-### 🪟 RDP (Remote Desktop) from Windows
-
-If you have a Windows Server on the airgapped network with RDP enabled (e.g., `192.168.227.101:3389`) and you define a tunnel like:
-
-```yaml
-- name: windows
-  local_port: 13389
-  target_ip: 192.168.227.101
-  target_port: 3389
-```
-
-After running:
+To start a single tunnel:
 
 ```bash
-source .bashrc_tunnels.txt
-start_tunnel_windows
+make start NAME=maas
 ```
 
-Then from a **Windows machine**, open **Remote Desktop Connection (mstsc.exe)** and connect to:
+### 4. Stop tunnels
 
-```
-localhost:13389
-```
-
-> 🔐 Make sure the jump server's SSH key is trusted and the private key is loaded in your agent (`ssh-add`), especially when tunneling from Windows tools like MobaXterm or PuTTY.
-
-
-
-Use the following to activate or deactivate all tunnel functions:
 ```bash
-make start    # Starts all tunnels defined in .bashrc_tunnels.txt
-make stop     # Runs shutdown_tunnels.sh to stop them
+make stop
 ```
 
----
+Stops all SSH tunnels.
 
-### 4. **Test local ports before binding**
+To stop a single tunnel:
 
-Check for conflicts on the ports you're using:
+```bash
+make stop NAME=maas
+```
+
+### 5. Show configured tunnels
+
+```bash
+make show
+```
+
+Displays the parsed configuration and jump host.
+
+### 6. Test tunnel availability
+
 ```bash
 make test
 ```
 
----
+Checks whether tunnels are reachable locally.
 
-## 🧪 Linting
+### 7. Check status
+
+```bash
+make status
+```
+
+Verifies which SSH tunnels are currently running.
+
+### 8. Lint
 
 ```bash
 make lint
 ```
 
-Checks that `.bashrc_tunnels.txt` appears to have been generated from YAML, not hand-edited or templated.
+Checks if `.bashrc_tunnels.txt` matches the current YAML config.
+**Does not fail the Makefile**.
 
 ---
 
-## 🛠 Available Make Targets
+## Examples
 
-| Target         | Description                                                |
-|----------------|------------------------------------------------------------|
-| `make init`    | Initialize `config/tunnel-hosts.yaml` from sample (with prompt) |
-| `make generate`| Generate `.bashrc_tunnels.txt` from YAML                   |
-| `make start`   | Start all defined tunnel functions                         |
-| `make stop`    | Stop SSH tunnels via `scripts/shutdown_tunnels.sh`        |
-| `make test`    | Check if defined ports are available                       |
-| `make lint`    | Check if `.bashrc_tunnels.txt` was generated from YAML     |
-| `make reset`   | Regenerate `.bashrc_tunnels.txt` from YAML (alias)         |
+### Web Interface Access
 
----
+To access an internal web UI (e.g. MAAS or Proxmox):
 
-## 🧯 Troubleshooting
+- Define the tunnel in `tunnel-hosts.yaml`:
 
-### ❌ Password Prompt Fails
-If `make start` prompts for an SSH password:
+```yaml
+- name: maas
+  local_port: 5240
+  target_ip: 192.168.227.3
+  target_port: 5240
+```
+
+- Visit `https://localhost:5240` in your browser.
+
+### Windows Remote Desktop (RDP)
+
+To access a Windows VM via RDP:
+
+```yaml
+- name: eng-ws
+  local_port: 13389
+  target_ip: 192.168.227.53
+  target_port: 3389
+```
+
+- From your Windows machine, open Remote Desktop Connection
+- Connect to `localhost:13389`
+
+### SSH into Remote Linux Host
+
+To SSH into a Linux VM behind the jump host:
+
+```yaml
+- name: remote-dev
+  local_port: 2222
+  target_ip: 192.168.227.44
+  target_port: 22
+```
+
+- Then use:
+
 ```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_rsa
-```
-
-Ensure your jump host’s public key is authorized.
-
----
-
-### ⚠️ Tunnel Port Already in Use
-If you see:
-```
-bind [127.0.0.1]:PORT: Address already in use
-```
-
-Run:
-```bash
-make stop
-```
-
-Or:
-```bash
-lsof -i :PORT
-kill <PID>
+ssh -p 2222 user@localhost
 ```
 
 ---
 
-## 🙈 Git Hygiene
+## Troubleshooting
 
-```gitignore
-# Ignore generated tunnel script and customized config
-.bashrc_tunnels.txt
-config/tunnel-hosts.yaml
-```
+### Jump Host Rejects SSH Key and Prompts for Password
 
-Only commit changes to:
-- `templates/tunnel-hosts.sample.yaml`
-- `scripts/`
-- `Makefile`
-- `README.md`
+If `make start` prompts for a password (e.g., `mike@192.168.215.222`), it's likely that:
+
+- Your **SSH key isn't present or authorized** on the jump host
+- Your **SSH config is incorrect**
+- The **key is being rejected by the server**
+
+#### ✅ Fix Instructions
+
+1. **Check if your key is being offered**:
+
+   ```bash
+   ssh -vv mike@192.168.215.222
+   ```
+
+2. **Add your public key to the jump host**:
+
+   ```bash
+   ssh mike@192.168.215.222 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'
+   cat ~/.ssh/id_ed25519.pub | ssh mike@192.168.215.222 'cat >> ~/.ssh/authorized_keys'
+   ```
+
+3. **Set up your SSH config**:
+
+   ```ssh
+   Host jump
+     HostName 192.168.215.222
+     User mike
+     IdentityFile ~/.ssh/id_ed25519
+     IdentitiesOnly yes
+   ```
+
+Then use `jump` as your `jump_host` in `tunnel-hosts.yaml`.
