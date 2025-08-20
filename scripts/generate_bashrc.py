@@ -13,7 +13,7 @@ def load_config(config_path="config/tunnel-hosts.yaml"):
         print(f"❌ Config file not found: {config_path}")
         sys.exit(1)
     try:
-        with open(config_path, "r") as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
     except yaml.YAMLError as e:
         print(f"❌ YAML syntax error in {config_path}:\n{e}")
@@ -72,7 +72,7 @@ def generate_bashrc_content(data):
     return "\n".join(lines)
 
 def write_bashrc_file(content):
-    with open(DEST_FILE, "w") as f:
+    with open(DEST_FILE, "w", encoding="utf-8") as f:
         f.write(content + "\n")
     print(f"✅ Generated {DEST_FILE}")
 
@@ -133,7 +133,7 @@ def lint_file(data):
         print("❌ Lint failed: .bashrc_tunnels.txt does not exist")
         sys.exit(1)
 
-    with open(DEST_FILE, "r") as f:
+    with open(DEST_FILE, "r", encoding="utf-8") as f:
         existing = f.read()
 
     generated = generate_bashrc_content(data)

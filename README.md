@@ -13,7 +13,7 @@ This project simplifies the creation of persistent SSH tunnels through a jump se
 
 ## Directory Structure
 
-```
+``` bash
 .
 ├── config/
 │   └── tunnel-hosts.yaml
@@ -121,7 +121,7 @@ To access an internal web UI (e.g. MAAS or Proxmox):
 ```yaml
 - name: maas
   local_port: 5240
-  target_ip: 192.168.227.3
+  target_ip: 10.8.10.3
   target_port: 5240
 ```
 
@@ -134,7 +134,7 @@ To access a Windows VM via RDP:
 ```yaml
 - name: eng-ws
   local_port: 13389
-  target_ip: 192.168.227.53
+  target_ip: 10.8.10.53
   target_port: 3389
 ```
 
@@ -148,7 +148,7 @@ To SSH into a Linux VM behind the jump host:
 ```yaml
 - name: remote-dev
   local_port: 2222
-  target_ip: 192.168.227.44
+  target_ip: 10.8.10.44
   target_port: 22
 ```
 
@@ -164,7 +164,7 @@ ssh -p 2222 user@localhost
 
 ### Jump Host Rejects SSH Key and Prompts for Password
 
-If `make start` prompts for a password (e.g., `mike@192.168.215.222`), it's likely that:
+If `make start` prompts for a password (e.g., `user@10.5.8.222`), it's likely that:
 
 - Your **SSH key isn't present or authorized** on the jump host
 - Your **SSH config is incorrect**
@@ -175,24 +175,61 @@ If `make start` prompts for a password (e.g., `mike@192.168.215.222`), it's like
 1. **Check if your key is being offered**:
 
    ```bash
-   ssh -vv mike@192.168.215.222
+   ssh -vv user@10.5.8.222
    ```
 
 2. **Add your public key to the jump host**:
 
    ```bash
-   ssh mike@192.168.215.222 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'
-   cat ~/.ssh/id_ed25519.pub | ssh mike@192.168.215.222 'cat >> ~/.ssh/authorized_keys'
+   ssh user@10.5.8.222 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'
+   cat ~/.ssh/id_ed25519.pub | ssh user@10.5.8.222 'cat >> ~/.ssh/authorized_keys'
    ```
 
 3. **Set up your SSH config**:
 
    ```ssh
    Host jump
-     HostName 192.168.215.222
-     User mike
+     HostName 10.5.8.222
+     User user
      IdentityFile ~/.ssh/id_ed25519
      IdentitiesOnly yes
    ```
 
 Then use `jump` as your `jump_host` in `tunnel-hosts.yaml`.
+
+### Tunnel Starts for Your Host Machine
+
+If you see output like:
+
+``` bash
+🚀 Starting SSH tunnels...
+❌ Tunnel 'your-hostname' not found in config
+```
+
+It means your own system (e.g., `mklein-w01`) was interpreted as a tunnel name.
+
+#### Why does this happen?
+
+This can happen if you previously ran:
+
+```bash
+make start NAME=your-hostname
+```
+
+and the environment variable `NAME` is still set in your shell session.
+
+#### ✅ How to Fix
+
+Before running any new `make` command, clear the `NAME` variable:
+
+```bash
+unset NAME
+```
+
+You can also confirm it's unset by running:
+
+```bash
+echo $NAME
+```
+
+This should return a blank line.
