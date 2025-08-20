@@ -24,3 +24,8 @@ env/
 # Ignore OS metadata
 ehthumbs.db
 Desktop.ini
+
+# Ignore customized templates (not for commit)
+.bashrc_tunnels.txt
+*/tunnel-hosts.yaml
+

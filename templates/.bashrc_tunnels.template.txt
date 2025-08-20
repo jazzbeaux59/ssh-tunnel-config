@@ -1,0 +1,34 @@
+# TEMPLATE - customize before use
+
+# Target jump server (replace with your actual user@ip)
+SSH_DEST="user@JUMP_SERVER_IP"
+
+# Function to create an SSH tunnel
+start_ssh_tunnel() {
+  local local_port="$1"
+  local target_host="$2"
+  local remote_port="$3"
+  local dest="$4"
+
+  echo "🔗 Starting tunnel: localhost:$local_port -> $target_host:$remote_port via $dest"
+  ssh -f -N -L "${local_port}:${target_host}:${remote_port}" "$dest"
+}
+
+# -----------------------------
+# Example tunnels — customize!
+# -----------------------------
+
+# Tunnel 1: Proxmox GUI (https://localhost:8006)
+start_proxmox() { start_ssh_tunnel 8006 192.168.X.X 8006 "$SSH_DEST"; }
+
+# Tunnel 2: MAAS Web UI (http://localhost:5240)
+start_maas() { start_ssh_tunnel 5240 192.168.X.X 5240 "$SSH_DEST"; }
+
+# Tunnel 3: Windows RDP (mstsc /v:localhost:3389)
+start_winrdp() { start_ssh_tunnel 3389 192.168.X.X 3389 "$SSH_DEST"; }
+
+# -----------------------------
+# Future tunnels can go here
+# -----------------------------
+# start_example() { start_ssh_tunnel 1234 192.168.X.X 5678 "$SSH_DEST"; }
+

@@ -1,44 +1,69 @@
-# Makefile for SSH tunnel config
-
+# Use bash shell
 SHELL := /bin/bash
 
-export ENV_FILE := ./config/sample.env
+CONFIG_FILE := .bashrc_tunnels.txt
+YAML_FILE := config/tunnel-hosts.yaml
+SAMPLE_YAML := templates/tunnel-hosts.sample.yaml
+GEN_SCRIPT := scripts/generate_bashrc.py
+SHUTDOWN_SCRIPT := scripts/shutdown_tunnels.sh
 
-include $(ENV_FILE)
+.PHONY: generate start stop test lint reset init help
 
-.PHONY: help all start stop one
+## Generate .bashrc_tunnels.txt from tunnel-hosts.yaml
+generate:
+	@echo "⚙️ Generating tunnel helpers from $(YAML_FILE)..."
+	@python3 $(GEN_SCRIPT)
 
-help:
-	@echo "Available targets:"
-	@echo "  make start     - Start all SSH tunnels"
-	@echo "  make stop      - Kill all SSH tunnels"
-	@echo "  make one LPORT= PORT= TARGET= - Start a specific tunnel"
-	@echo "  make show      - Show tunnel aliases"
-	@echo "  make help      - This message"
+## Initialize config/tunnel-hosts.yaml from sample (with prompt), then generate
+init:
+	@mkdir -p config
+	@if [ -f $(YAML_FILE) ]; then \
+	  read -p "⚠️  $(YAML_FILE) already exists. Overwrite? [y/N] " confirm; \
+	  if [ "$$confirm" != "y" ]; then \
+	    echo "❌ Aborting init."; \
+	    exit 1; \
+	  fi; \
+	fi
+	@cp $(SAMPLE_YAML) $(YAML_FILE)
+	@echo "✅ Copied sample config to $(YAML_FILE)"
+	@echo "📝 Please edit and customize $(YAML_FILE) before running 'make generate'"
 
+## Start all defined tunnels
 start:
-	@./scripts/launch_all.sh
+	@echo "🚀 Starting SSH tunnels..."
+	@bash -c 'source $(CONFIG_FILE); declare -F | grep start_tunnel_ | awk "{print \$$3}" | while read f; do $$f; done'
 
+## Stop SSH tunnels (requires shutdown_tunnels.sh)
 stop:
-	@./scripts/kill_all.sh
+	@test -f $(SHUTDOWN_SCRIPT) || (echo "❌ Script not found: $(SHUTDOWN_SCRIPT)" && exit 1)
+	@echo "🛑 Stopping all SSH tunnels..."
+	@bash $(SHUTDOWN_SCRIPT)
 
-one:
-	@if [ -z "$(LPORT)" ] || [ -z "$(TARGET)" ] || [ -z "$(PORT)" ]; then \
-		echo "Usage: make one LPORT=<local> PORT=<remote> TARGET=<ip>"; \
-		exit 1; \
-	fi; \
-	./scripts/tunnel_one.sh $(LPORT) $(TARGET) $(PORT) $(USERNAME)@$(JUMP_IP)
-
-show:
-	@source ./.bashrc_tunnels.txt && show_tunnels
-
+## Test tunnel ports for availability
 test:
-	@echo "Testing tunnel connections..."
-	@echo "Testing Proxmox..."
-	@curl -sk https://localhost:8006 || echo "Proxmox unreachable"
-	@echo "Testing MAAS..."
-	@curl -s http://localhost:5240 || echo "MAAS unreachable"
-	@echo "Testing WinRM port..."
-	@nc -zv localhost 15986 || echo "WinRM port closed"
-	@echo "Testing RDP port..."
-	@nc -zv localhost 13389 || echo "RDP port closed"
+	@echo "🔍 Testing for tunnel port availability..."
+	@awk '/^start_tunnel_/ { print $$1 }' $(CONFIG_FILE) | while read f; do \
+		port=$$(grep -A1 "$$f" $(CONFIG_FILE) | grep start_ssh_tunnel | awk '{print $$2}'); \
+		if lsof -i :$$port -sTCP:LISTEN >/dev/null 2>&1; then \
+			echo "❌ Port $$port already in use"; \
+		else \
+			echo "✅ Port $$port is available"; \
+		fi; \
+	done
+
+## Lint: check if file was regenerated
+lint:
+	@grep -q 'Generated from config/tunnel-hosts.yaml' $(CONFIG_FILE) && \
+		echo "✅ Config file appears to be generated from YAML." || \
+		(echo "⚠️  Config may be outdated or manually edited." && exit 1)
+
+## Reset config by regenerating from YAML
+reset: generate
+	@echo "🔁 Tunnel config reset from YAML."
+
+## Show help
+help:
+	@echo ""
+	@echo "Available targets:"
+	@grep -E '^##' $(MAKEFILE_LIST) | sed -E 's/^## //;s/^([a-z_-]+):.*/\1/' | awk '{ printf "  %-12s %s\n", $$1, substr($$0, index($$0,$$2)) }'
+
