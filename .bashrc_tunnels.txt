@@ -1,0 +1,21 @@
+# SSH jump server destination
+export SSH_DEST="USERNAME@JUMP_IP"
+
+# SSH tunnel function
+start_ssh_tunnel() {
+  local LPORT=$1
+  local RHOST=$2
+  local RPORT=$3
+  local DEST=${4:-$SSH_DEST}
+  echo "Creating SSH tunnel: localhost:${LPORT} → ${RHOST}:${RPORT} via ${DEST}"
+  ssh -fN -L ${LPORT}:${RHOST}:${RPORT} ${DEST}
+}
+
+# Predefined tunnels
+alias tunnel_proxmox='start_ssh_tunnel 8006 PROXMOX_IP 8006'
+alias tunnel_maas='start_ssh_tunnel 5240 MAAS_IP 5240'
+alias tunnel_windows_rdp='start_ssh_tunnel 13389 WIN_IP 3389'
+alias tunnel_windows_winrm='start_ssh_tunnel 15986 WIN_IP 5986'
+
+# Optional: List all tunnel aliases
+alias show_tunnels='echo -e "Available tunnels:\n  tunnel_proxmox → https://localhost:8006\n  tunnel_maas → http://localhost:5240\n  tunnel_windows_rdp → RDP to localhost:13389\n  tunnel_windows_winrm → WinRM to localhost:15986"'

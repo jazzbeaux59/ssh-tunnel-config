@@ -1,0 +1,7 @@
+#!/bin/bash
+# Usage: ./tunnel_one.sh 13389 192.168.227.53 3389 mike@192.168.215.222
+LOCAL_PORT="$1"
+TARGET_HOST="$2"
+REMOTE_PORT="$3"
+SSH_DEST="$4"
+ssh -fN -L ${LOCAL_PORT}:${TARGET_HOST}:${REMOTE_PORT} ${SSH_DEST}

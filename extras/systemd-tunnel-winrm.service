@@ -1,0 +1,9 @@
+[Unit]
+Description=Persistent SSH tunnel for WinRM
+
+[Service]
+ExecStart=/usr/bin/ssh -N -L 15986:192.168.227.53:5986 mike@192.168.215.222
+Restart=always
+
+[Install]
+WantedBy=default.target

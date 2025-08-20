@@ -1,0 +1,26 @@
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Python cache and virtual environments
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Ignore editor settings
+*.swp
+*.swo
+*.bak
+*.tmp
+.vscode/
+.idea/
+
+# Ignore log files
+*.log
+
+# Ignore OS metadata
+ehthumbs.db
+Desktop.ini

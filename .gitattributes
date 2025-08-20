@@ -1,0 +1,10 @@
+# Treat all text files as UTF-8
+* text=auto
+
+# Ensure consistent line endings
+*.sh text eol=lf
+*.txt text eol=lf
+*.md text eol=lf
+
+# Set shell scripts as executable
+*.sh eol=lf diff=unix
