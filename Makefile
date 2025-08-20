@@ -1,4 +1,4 @@
-.PHONY: all help init generate start stop test reset show status lint tunnel
+.PHONY: all help init generate start stop test reset show status lint tunnel examples
 
 PYTHON = python3
 PYTHON_SCRIPT = scripts/generate_bashrc.py
@@ -70,4 +70,7 @@ show:  ## Show current tunnel configuration
 status:  ## Check if tunnels are active
 	@echo "🔎 Checking tunnel status..."
 	@$(PYTHON) $(PYTHON_SCRIPT) --status
+
+examples:  ## Show usage examples from README
+	@awk '/^## Examples/{show=1; next} /^## /{show=0} show' README.md | less
 
