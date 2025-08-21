@@ -1,235 +1,206 @@
-# SSH Tunnel Project
+# SSH Tunnel Configurator
 
-This project simplifies the creation of persistent SSH tunnels through a jump server to access services inside an airgapped network.
+A simple, profile-based SSH tunnel manager that lets you define and switch between sets of tunnels for development, infrastructure access, or any remote environment.
 
-## Features
+## 📁 Configuration
 
-- Centralized configuration of tunnel destinations
-- Template-driven generation of startup scripts
-- One-command startup via Makefile
-- Supports web, RDP, and SSH access to remote airgapped hosts
-- Lint check to verify `.bashrc_tunnels.txt` is up-to-date
-- Python-only (no shell script dependencies)
+All tunnel profiles are defined in a single YAML file: `config/tunnel-hosts.yaml`.
 
-## Directory Structure
+Each profile includes:
 
-``` bash
-.
-├── config/
-│   └── tunnel-hosts.yaml
-├── templates/
-│   └── tunnel-hosts.sample.yaml
-│   └── .bashrc_tunnels.txt.j2
-├── scripts/
-│   └── generate_bashrc.py
-├── .bashrc_tunnels.txt
-├── Makefile
-└── README.md
+- A `jump_host` (the bastion / proxy server)
+- A `jump_user` (the SSH user to log in as)
+- A list of `tunnels` with `name`, `local_port`, `target_ip`, and `target_port`.
+
+### 🔧 Example Configuration
+
+```yaml
+profiles:
+  default:
+    jump_host: 192.168.215.222
+    jump_user: mike
+    tunnels:
+      - name: provisioning-server
+        local_port: 2201
+        target_ip: 192.168.227.69
+        target_port: 22
+      - name: proxmox
+        local_port: 8006
+        target_ip: 192.168.227.7
+        target_port: 8006
+
+  dev:
+    jump_host: dev.jump.local
+    jump_user: devops
+    tunnels:
+      - name: grafana
+        local_port: 3000
+        target_ip: 10.0.0.5
+        target_port: 3000
+      - name: ssh-builder
+        local_port: 2222
+        target_ip: 10.0.0.10
+        target_port: 22
 ```
 
-## Usage
+Each tunnel’s effective name is suffixed with its profile name (e.g. `proxmox_default`, `grafana_dev`) to ensure uniqueness.
 
-### 1. Initialize
+---
 
-```bash
-make init
-```
+## 🛠 Usage
 
-- Copies `tunnel-hosts.sample.yaml` to `config/tunnel-hosts.yaml`
-- If the file already exists, prompts before overwriting
-- **Reminder:** Edit `config/tunnel-hosts.yaml` to match your environment
+Use `make` commands to manage tunnels. Requires Python 3 and SSH client.
 
-### 2. Generate tunnel script
+### 🔄 Available Targets
 
-```bash
-make generate
-```
+| Make Target      | Description |
+|------------------|-------------|
+| `make start`     | Start all tunnels (or a specific one with `NAME=...`). Optionally specify `PROFILE=...`. |
+| `make stop`      | Stop all running tunnels. |
+| `make status`    | Show currently running SSH tunnel processes. |
+| `make show`      | Show tunnel configuration from all profiles. |
+| `make lint`      | Check if `.bashrc_tunnels.txt` is up-to-date with the config. |
+| `make examples`  | Print usage examples. |
+| `make switch PROFILE=name` | Switch to a profile (noop, since all profiles are merged now). |
 
-Generates `.bashrc_tunnels.txt` based on the current YAML config.
-
-### 3. Start tunnels
-
-```bash
-make start
-```
-
-Starts all defined SSH tunnels in the background.
-
-To start a single tunnel:
+You can override variables at the command line:
 
 ```bash
-make start NAME=maas
-```
-
-### 4. Stop tunnels
-
-```bash
+make start PROFILE=dev
+make start NAME=grafana_dev
 make stop
 ```
 
-Stops all SSH tunnels.
+---
 
-To stop a single tunnel:
-
-```bash
-make stop NAME=maas
-```
-
-### 5. Show configured tunnels
+## 🧪 Examples
 
 ```bash
+# Start all tunnels in the 'default' profile
+make start
+
+# Start all tunnels in a different profile
+make start PROFILE=dev
+
+# Start a specific tunnel by name
+make start NAME=grafana_dev
+
+# Stop all tunnels
+make stop
+
+# Show your current configuration
 make show
-```
 
-Displays the parsed configuration and jump host.
-
-### 6. Test tunnel availability
-
-```bash
-make test
-```
-
-Checks whether tunnels are reachable locally.
-
-### 7. Check status
-
-```bash
+# See which tunnels are active
 make status
-```
 
-Verifies which SSH tunnels are currently running.
-
-### 8. Lint
-
-```bash
-make lint
-```
-
-Checks if `.bashrc_tunnels.txt` matches the current YAML config.
-**Does not fail the Makefile**.
-
----
-
-## Examples
-
-### Web Interface Access
-
-To access an internal web UI (e.g. MAAS or Proxmox):
-
-- Define the tunnel in `tunnel-hosts.yaml`:
-
-```yaml
-- name: maas
-  local_port: 5240
-  target_ip: 10.8.10.3
-  target_port: 5240
-```
-
-- Visit `https://localhost:5240` in your browser.
-
-### Windows Remote Desktop (RDP)
-
-To access a Windows VM via RDP:
-
-```yaml
-- name: eng-ws
-  local_port: 13389
-  target_ip: 10.8.10.53
-  target_port: 3389
-```
-
-- From your Windows machine, open Remote Desktop Connection
-- Connect to `localhost:13389`
-
-### SSH into Remote Linux Host
-
-To SSH into a Linux VM behind the jump host:
-
-```yaml
-- name: remote-dev
-  local_port: 2222
-  target_ip: 10.8.10.44
-  target_port: 22
-```
-
-- Then use:
-
-```bash
-ssh -p 2222 user@localhost
+# Preview bashrc lines
+make generate-stdout PROFILE=default
 ```
 
 ---
 
-## Troubleshooting
+## ⚠️ Troubleshooting
 
-### Jump Host Rejects SSH Key and Prompts for Password
+### My machine appears in the list of tunnels unexpectedly
 
-If `make start` prompts for a password (e.g., `user@10.5.8.222`), it's likely that:
-
-- Your **SSH key isn't present or authorized** on the jump host
-- Your **SSH config is incorrect**
-- The **key is being rejected by the server**
-
-#### ✅ Fix Instructions
-
-1. **Check if your key is being offered**:
-
-   ```bash
-   ssh -vv user@10.5.8.222
-   ```
-
-2. **Add your public key to the jump host**:
-
-   ```bash
-   ssh user@10.5.8.222 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'
-   cat ~/.ssh/id_ed25519.pub | ssh user@10.5.8.222 'cat >> ~/.ssh/authorized_keys'
-   ```
-
-3. **Set up your SSH config**:
-
-   ```ssh
-   Host jump
-     HostName 10.5.8.222
-     User user
-     IdentityFile ~/.ssh/id_ed25519
-     IdentitiesOnly yes
-   ```
-
-Then use `jump` as your `jump_host` in `tunnel-hosts.yaml`.
-
-### Tunnel Starts for Your Host Machine
-
-If you see output like:
-
-``` bash
-🚀 Starting SSH tunnels...
-❌ Tunnel 'your-hostname' not found in config
-```
-
-It means your own system (e.g., `mklein-w01`) was interpreted as a tunnel name.
-
-#### Why does this happen?
-
-This can happen if you previously ran:
-
-```bash
-make start NAME=your-hostname
-```
-
-and the environment variable `NAME` is still set in your shell session.
-
-#### ✅ How to Fix
-
-Before running any new `make` command, clear the `NAME` variable:
-
-```bash
-unset NAME
-```
-
-You can also confirm it's unset by running:
+This usually happens when your shell environment has a lingering `NAME` variable set. You can inspect this with:
 
 ```bash
 echo $NAME
 ```
 
-This should return a blank line.
+If this prints your hostname or a tunnel name you didn’t intend to use, simply unset it:
+
+```bash
+unset NAME
+```
+
+This is especially common if you've previously run `make start NAME=...` and forgot to unset `NAME` afterward.
+
+---
+
+### Overlapping local ports between profiles
+
+If multiple profiles define tunnels using the same `local_port` values, commands like `make start`, `make status`, or `make stop` may fail with messages such as:
+
+```
+❌ Overlapping local_port '2201' in profile 'exxon'
+```
+
+To avoid this:
+
+- Ensure all `local_port` values are unique across **all profiles**, not just within a profile.
+- Consider reserving a distinct range of ports for each profile (e.g., 2200–2299 for `default`, 2300–2399 for `exxon`, etc.).
+- Alternatively, use the `NAME` and `PROFILE` environment variables to work with a single tunnel or profile at a time and avoid conflicts.
+
+Use `make lint` to check whether your `.bashrc_tunnels.txt` is in sync with your configuration.
+
+### ❌ My own machine is showing up as a tunnel host
+
+This happens when the `NAME` environment variable is set in your shell. It can confuse the script when starting tunnels.
+
+**Fix:**
+
+```bash
+unset NAME
+```
+
+Also added to the `Makefile` logic to clear `NAME` after use.
+
+---
+
+### ❌ Port already in use
+
+This means something is already listening on the same local port (e.g., from a previous run).
+
+**Fix:**
+
+```bash
+make stop
+make start
+```
+
+---
+
+## 📜 Generated Bashrc Snippet
+
+To generate a list of SSH commands for `.bashrc` or manual use:
+
+```bash
+make generate
+```
+
+This creates `.bashrc_tunnels.txt` from your current profile config.
+
+---
+
+## ✅ Requirements
+
+- Python 3.8+
+- OpenSSH client (`ssh`)
+- YAML file in `config/tunnel-hosts.yaml`
+
+---
+
+## 📂 Layout
+
+```
+.
+├── config/
+│   └── tunnel-hosts.yaml
+├── scripts/
+│   └── generate_bashrc.py
+├── Makefile
+└── .bashrc_tunnels.txt
+```
+
+---
+
+## 🙋 Support
+
+Feel free to add issues or request new features.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) © 2025 Michel J. Klein.
