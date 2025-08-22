@@ -27,5 +27,5 @@ Desktop.ini
 
 # Ignore customized templates (not for commit)
 .bashrc_tunnels.txt
-*/tunnel-hosts.yaml
+*/ssh_config.yaml
 

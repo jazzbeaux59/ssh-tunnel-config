@@ -3,7 +3,8 @@ import subprocess
 import yaml
 import os
 
-CONFIG_FILE = "config/tunnel-hosts.yaml"
+CONFIG_FILE = "config/ssh_config.yml"
+
 
 def load_ports_from_yaml(config_path):
     with open(config_path, "r") as f:
