@@ -4,7 +4,8 @@ SHELL := /bin/bash
 PYTHON := python3
 SCRIPT := scripts/generate_bashrc.py
 CONFIG := config/ssh_config.yml
-DEFAULT_PROFILE := $(or ${PROFILE},$(shell awk '/^default_profile:/ {print $$2}' $(CONFIG)))
+CURRENT_PROFILE_FILE := .current_profile
+DEFAULT_PROFILE := $(or ${PROFILE},$(shell cat $(CURRENT_PROFILE_FILE) 2>/dev/null || awk '/^default_profile:/ {print $$2}' $(CONFIG)))
 
 .PHONY: help start stop switch status test show generate lint examples
 
@@ -25,6 +26,7 @@ stop:
 
 switch:
 	@echo "🔀 Switching to profile '$(PROFILE)'..."
+	@echo "$(PROFILE)" > $(CURRENT_PROFILE_FILE)
 	@$(MAKE) stop PROFILE=$(PROFILE)
 	@$(MAKE) start PROFILE=$(PROFILE)
 
