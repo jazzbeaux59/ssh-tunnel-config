@@ -95,24 +95,26 @@ def test_tunnels(profiles):
             result = os.system(f"nc -z localhost {port}")
             print("✅ Tunnel is reachable" if result == 0 else "❌ Tunnel is not responding")
 
-def start_tunnel(profiles, name):
+def start(profiles):
     for profile, data in profiles.items():
         for tunnel in data["tunnels"]:
-            if tunnel["name"] == name:
-                print(f"🔗 Starting tunnel: {name}_{profile}")
-                cmd = (
-                    f"ssh -f -N -L {tunnel['local_port']}:{tunnel['target_ip']}:{tunnel['target_port']} "
-                    f"{data['jump_user']}@{data['jump_host']} "
-                    "-o ExitOnForwardFailure=yes "
-                    "-o ServerAliveInterval=60 "
-                    "-o ServerAliveCountMax=3 "
-                    "-o ConnectTimeout=10 "
-                    "-o StrictHostKeyChecking=no"
-                )
-                os.system(cmd)
-                return
-    print(f"❌ Tunnel '{name}' not found in filtered profiles.")
-    sys.exit(1)
+            port = tunnel["local_port"]
+            # Check if port is already open
+            result = os.system(f"lsof -i tcp:{port} >/dev/null 2>&1")
+            if result == 0:
+                print(f"✅ Tunnel {tunnel['name']}_{profile} is already running on port {port}")
+                continue
+            print(f"🔗 Starting tunnel: {tunnel['name']}_{profile}")
+            cmd = (
+                f"ssh -f -N -L {tunnel['local_port']}:{tunnel['target_ip']}:{tunnel['target_port']} "
+                f"{data['jump_user']}@{data['jump_host']} "
+                "-o ExitOnForwardFailure=yes "
+                "-o ServerAliveInterval=60 "
+                "-o ServerAliveCountMax=3 "
+                "-o ConnectTimeout=10 "
+                "-o StrictHostKeyChecking=no"
+            )
+            os.system(cmd)
 
 def stop_tunnel(profiles, name):
     for profile, data in profiles.items():
@@ -125,15 +127,19 @@ def stop_tunnel(profiles, name):
     print(f"❌ Tunnel '{name}' not found in filtered profiles.")
     sys.exit(1)
 
-def start_all(profiles):
-    for profile, data in profiles.items():
-        for tunnel in data["tunnels"]:
-            start_tunnel({profile: data}, tunnel["name"])
 
 def stop_all(profiles):
     for profile, data in profiles.items():
         for tunnel in data["tunnels"]:
             stop_tunnel({profile: data}, tunnel["name"])
+
+def list_profiles():
+    with open('config/ssh_config.yml', 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    profiles = config.get('profiles', {})
+    print("Available profiles:")
+    for name in profiles:
+        print(f"  - {name}")
 
 def main(cli):
     config = load_config()
@@ -152,12 +158,10 @@ def main(cli):
         check_status(profiles)
     elif cli.test:
         test_tunnels(profiles)
-    elif cli.tunnel:
-        start_tunnel(profiles, cli.tunnel)
+    elif cli.start:
+        start(profiles)
     elif cli.stop:
         stop_tunnel(profiles, cli.stop)
-    elif cli.start_all:
-        start_all(profiles)
     elif cli.stop_all:
         stop_all(profiles)
     else:
@@ -171,9 +175,8 @@ if __name__ == "__main__":
     parser.add_argument("--show", action="store_true", help="Display configured tunnels")
     parser.add_argument("--status", action="store_true", help="Check status of tunnel ports")
     parser.add_argument("--test", action="store_true", help="Test tunnel port reachability")
-    parser.add_argument("--start-all", action="store_true", help="Start all tunnels")
+    parser.add_argument("--start", action="store_true", help="Start all tunnels for the selected profile")
     parser.add_argument("--stop-all", action="store_true", help="Stop all tunnels")
-    parser.add_argument("--tunnel", help="Start a single tunnel by name")
     parser.add_argument("--stop", help="Stop a single tunnel by name")
     parser.add_argument("--profile", help="Limit operations to a specific profile")
     cli = parser.parse_args()

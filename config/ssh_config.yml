@@ -1,70 +1,71 @@
+---
+# Master SSH tunnel configuration
 default_profile: prod-test-01
 
 profiles:
   prod-test-01:
-    jump_host: 192.168.215.222
+    jump_host: 192.168.215.222      # jump server (office-side, prod-test-01)
     jump_user: mike
+    identity_file: ~/.ssh/id_ed25519
+    use_autossh: false
     tunnels:
-      # provisioning server
-      - name: provisioning-server
-        local_port: 2201
-        target_ip: 192.168.227.69
-        target_port: 22
-
-      # proxmox GUI
       - name: proxmox
-        local_port: 8006
+        local_port: 28006
         target_ip: 192.168.227.7
         target_port: 8006
 
-      # maas GUI
       - name: maas
-        local_port: 5240
-        target_ip: 192.168.227.3
+        local_port: 25240
+        target_ip: 192.168.227.104
         target_port: 5240
 
-      # eng-ws remote desktop
-      - name: win_rdp_eng_ws
-        local_port: 13389
-        target_ip: 192.168.227.53
+      - name: provisioning-server
+        local_port: 22201
+        target_ip: 192.168.227.69
+        target_port: 22
+
+      - name: vscode-provisioning
+        local_port: 22202
+        target_ip: 192.168.227.69
+        target_port: 22
+
+      - name: rdp-builder
+        local_port: 23389
+        target_ip: 192.168.227.205
         target_port: 3389
 
-      # eng-ws command line
-      - name: win_winrm_eng_ws
-        local_port: 15986
-        target_ip: 192.168.227.53
-        target_port: 5986
-
   exxon:
-    jump_host: 192.168.215.226
+    jump_host: 192.168.215.226      # jump server (office-side, exxon)
     jump_user: mike
+    identity_file: ~/.ssh/id_ed25519
+    use_autossh: false
     tunnels:
-      # provisioning server
+      - name: proxmox
+        local_port: 28006
+        target_ip: 10.2.10.7
+        target_port: 8006
+
+      - name: maas
+        local_port: 25240
+        target_ip: 10.2.10.104
+        target_port: 5240
+
       - name: provisioning-server
-        local_port: 3201
+        local_port: 22201
         target_ip: 10.2.10.69
         target_port: 22
 
-      # proxmox GUI
-      - name: proxmox
-        local_port: 18006
-        target_ip: 10.2.10.2
-        target_port: 8006
+      - name: vscode-provisioning
+        local_port: 22202
+        target_ip: 10.2.10.69
+        target_port: 22
 
-      # maas GUI
-      - name: maas
-        local_port: 15240
-        target_ip: 10.2.10.8
-        target_port: 5240
-
-      # eng-ws remote desktop
-      - name: win_rdp_eng_ws
+      - name: rdp-builder
         local_port: 23389
-        target_ip: 10.2.10.12
+        target_ip: 10.2.10.205
         target_port: 3389
 
-      # eng-ws command line
-      - name: win_winrm_eng_ws
-        local_port: 25986
-        target_ip: 10.2.10.12
-        target_port: 5986
+      - name: win_rdp_builder
+        local_port: 23390
+        target_ip: 10.2.10.15
+        target_port: 3389
