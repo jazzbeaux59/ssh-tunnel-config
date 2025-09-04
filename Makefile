@@ -95,10 +95,15 @@ switch: _detect-cli
 		echo "$(ERR) PROFILE is required for switch. Use: make switch PROFILE=<name>"; \
 		exit 1; \
 	fi
-	@echo "🔀 Switching to profile '$(PROFILE)'..."
-	@echo "$(PROFILE)" > $(LAST_FILE)
-	@$(MAKE) --no-print-directory stop PROFILE=$(PROFILE)
-	@$(MAKE) --no-print-directory current
+	PREV_PROFILE=$$(cat $(LAST_FILE) 2>/dev/null); \
+	if [ -n "$$PREV_PROFILE" ]; then \
+		echo "🛑 Stopping tunnels for previous profile '$$PREV_PROFILE'..."; \
+		$(MAKE) --no-print-directory stop PROFILE="$$PREV_PROFILE"; \
+	fi; \
+	echo "🔀 Switching to profile '$(PROFILE)'..."; \
+	echo "$(PROFILE)" > $(LAST_FILE); \
+	$(MAKE) --no-print-directory start PROFILE=$(PROFILE); \
+	$(MAKE) --no-print-directory current
 
 ## Print the saved profile from .last_profile
 current:

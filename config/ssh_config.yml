@@ -1,71 +1,31 @@
 ---
 # Master SSH tunnel configuration
-default_profile: prod-test-01
+default_profile: example-profile
 
 profiles:
-  prod-test-01:
-    jump_host: 192.168.215.222      # jump server (office-side, prod-test-01)
-    jump_user: mike
+  example-profile:
+    jump_host: 1.2.3.4         # Replace with your jump server IP
+    jump_user: youruser        # Replace with your SSH username
     identity_file: ~/.ssh/id_ed25519
     use_autossh: false
     tunnels:
-      - name: proxmox
-        local_port: 28006
-        target_ip: 192.168.227.7
-        target_port: 8006
-
-      - name: maas
-        local_port: 25240
-        target_ip: 192.168.227.104
-        target_port: 5240
-
-      - name: provisioning-server
-        local_port: 22201
-        target_ip: 192.168.227.69
+      - name: example-tunnel-1
+        local_port: 22222
+        target_ip: 10.0.0.1
         target_port: 22
 
-      - name: vscode-provisioning
-        local_port: 22202
-        target_ip: 192.168.227.69
-        target_port: 22
-
-      - name: rdp-builder
-        local_port: 23389
-        target_ip: 192.168.227.205
+      - name: example-tunnel-2
+        local_port: 33333
+        target_ip: 10.0.0.2
         target_port: 3389
 
-  exxon:
-    jump_host: 192.168.215.226      # jump server (office-side, exxon)
-    jump_user: mike
-    identity_file: ~/.ssh/id_ed25519
-    use_autossh: false
+  another-profile:
+    jump_host: 5.6.7.8
+    jump_user: anotheruser
+    identity_file: ~/.ssh/id_rsa
+    use_autossh: true
     tunnels:
-      - name: proxmox
-        local_port: 28006
-        target_ip: 10.2.10.7
-        target_port: 8006
-
-      - name: maas
-        local_port: 25240
-        target_ip: 10.2.10.104
-        target_port: 5240
-
-      - name: provisioning-server
-        local_port: 22201
-        target_ip: 10.2.10.69
-        target_port: 22
-
-      - name: vscode-provisioning
-        local_port: 22202
-        target_ip: 10.2.10.69
-        target_port: 22
-
-      - name: rdp-builder
-        local_port: 23389
-        target_ip: 10.2.10.205
-        target_port: 3389
-
-      - name: win_rdp_builder
-        local_port: 23390
-        target_ip: 10.2.10.15
-        target_port: 3389
+      - name: another-tunnel
+        local_port: 44444
+        target_ip: 10.1.1.1
+        target_port: 8080
