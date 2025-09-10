@@ -27,7 +27,8 @@ Desktop.ini
 
 # Ignore customized templates (not for commit)
 .bashrc_tunnels.txt
-*/ssh_config.yaml
+*/ssh_config.yml
 .current_profile
 .last_profile
+
 
