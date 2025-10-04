@@ -50,6 +50,17 @@ venv:
 deps: venv
 	$(ACTIVATE) && $(PIP) install -r requirements.txt
 
+## Quietly ensure dependencies are installed (for internal use)
+_ensure-deps:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "$(INFO) Creating virtual environment..."; \
+		$(MAKE) --no-print-directory venv; \
+	fi
+	@if [ ! -f "$(VENV)/.deps-installed" ] || [ "requirements.txt" -nt "$(VENV)/.deps-installed" ]; then \
+		echo "$(INFO) Installing dependencies..."; \
+		$(ACTIVATE) && $(PIP) install -q -r requirements.txt && touch "$(VENV)/.deps-installed"; \
+	fi
+
 ## Lint Python and YAML files
 lint:
 	@echo "Linting Python files with ruff..."
@@ -58,34 +69,34 @@ lint:
 	@yamllint config/ssh_config.yml
 
 ## Start tunnels for the selected profile
-start: _detect-cli
+start: _detect-cli deps
 	@P="$$( { $(RESOLVE_PROFILE_SH) ; } )" && \
 	echo "🔐 PROFILE='$$P'" && \
 	if [ -n "$(CLI_NEW)" ]; then \
-		$(PY) $(CLI_NEW) start $$P && echo "$(OK) Started tunnels for '$$P'"; \
+		$(ACTIVATE) && $(PY) $(CLI_NEW) start $$P && echo "$(OK) Started tunnels for '$$P'"; \
 	else \
-		$(PY) $(CLI_OLD) --start --profile $$P && echo "$(OK) Started tunnels for '$$P'"; \
+		$(ACTIVATE) && $(PY) $(CLI_OLD) --start --profile $$P && echo "$(OK) Started tunnels for '$$P'"; \
 	fi
 
 ## Stop tunnels for the selected profile
-stop: _detect-cli
+stop: _detect-cli _ensure-deps
 	@P="$$( { $(RESOLVE_PROFILE_SH) ; } )" && \
 	echo "🔐 PROFILE='$$P'" && \
 	if [ -n "$(CLI_NEW)" ]; then \
-		$(PY) $(CLI_NEW) stop $$P && echo "$(OK) Stopped tunnels for '$$P'" || true; \
+		$(ACTIVATE) && $(PY) $(CLI_NEW) stop $$P && echo "$(OK) Stopped tunnels for '$$P'" || true; \
 	else \
-		$(PY) $(CLI_OLD) --stop-all --profile $$P || true; \
+		$(ACTIVATE) && $(PY) $(CLI_OLD) --stop-all --profile $$P || true; \
 		echo "$(OK) Stopped tunnels for '$$P'"; \
 	fi
 
 ## Show status for the selected profile
-status: _detect-cli
+status: _detect-cli _ensure-deps
 	@P="$$( { $(RESOLVE_PROFILE_SH) ; } )" && \
 	echo "🔐 PROFILE='$$P'" && \
 	if [ -n "$(CLI_NEW)" ]; then \
-		$(PY) $(CLI_NEW) status $$P || true; \
+		$(ACTIVATE) && $(PY) $(CLI_NEW) status $$P || true; \
 	else \
-		$(PY) $(CLI_OLD) --status --profile $$P || true; \
+		$(ACTIVATE) && $(PY) $(CLI_OLD) --status --profile $$P || true; \
 	fi
 
 ## Set and persist the active profile, then restart tunnels
@@ -121,8 +132,8 @@ reload: _detect-cli
 	$(MAKE) --no-print-directory start PROFILE="$$P"
 
 ## List available profiles and show example SSH/RDP commands for each
-configs:
-	@$(PY) scripts/list_configs.py
+configs: _ensure-deps
+	@$(ACTIVATE) && $(PY) scripts/list_configs.py
 
 # ---- Resolve profile helper (no write) --------------------------------------
 define RESOLVE_PROFILE_SH
