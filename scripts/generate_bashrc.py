@@ -96,7 +96,34 @@ def test_tunnels(profiles):
             print("✅ Tunnel is reachable" if result == 0 else "❌ Tunnel is not responding")
 
 def start(profiles):
+    # Create control socket directory
+    control_dir = "/tmp/ssh-tunnel-control"
+    os.makedirs(control_dir, exist_ok=True)
+    
     for profile, data in profiles.items():
+        jump_host = data['jump_host']
+        jump_user = data['jump_user']
+        control_socket = f"{control_dir}/{jump_user}@{jump_host}_{profile}"
+        
+        # Check if master connection exists
+        master_running = os.system(f"ssh -O check -S {control_socket} {jump_user}@{jump_host} 2>/dev/null") == 0
+        
+        if not master_running:
+            print(f"🔐 Establishing master connection to {jump_user}@{jump_host}...")
+            # Start master connection
+            master_cmd = (
+                f"ssh -f -N -M -S {control_socket} {jump_user}@{jump_host} "
+                "-o ControlPersist=10m "
+                "-o ServerAliveInterval=60 "
+                "-o ServerAliveCountMax=3 "
+                "-o ConnectTimeout=10 "
+                "-o StrictHostKeyChecking=no"
+            )
+            result = os.system(master_cmd)
+            if result != 0:
+                print(f"❌ Failed to establish master connection to {jump_host}")
+                continue
+        
         for tunnel in data["tunnels"]:
             port = tunnel["local_port"]
             # Check if port is already open
@@ -106,13 +133,9 @@ def start(profiles):
                 continue
             print(f"🔗 Starting tunnel: {tunnel['name']}_{profile}")
             cmd = (
-                f"ssh -f -N -L {tunnel['local_port']}:{tunnel['target_ip']}:{tunnel['target_port']} "
-                f"{data['jump_user']}@{data['jump_host']} "
-                "-o ExitOnForwardFailure=yes "
-                "-o ServerAliveInterval=60 "
-                "-o ServerAliveCountMax=3 "
-                "-o ConnectTimeout=10 "
-                "-o StrictHostKeyChecking=no"
+                f"ssh -f -N -S {control_socket} -L {tunnel['local_port']}:{tunnel['target_ip']}:{tunnel['target_port']} "
+                f"{jump_user}@{jump_host} "
+                "-o ExitOnForwardFailure=yes"
             )
             os.system(cmd)
 
@@ -129,9 +152,21 @@ def stop_tunnel(profiles, name):
 
 
 def stop_all(profiles):
+    control_dir = "/tmp/ssh-tunnel-control"
+    
     for profile, data in profiles.items():
         for tunnel in data["tunnels"]:
             stop_tunnel({profile: data}, tunnel["name"])
+        
+        # Clean up master connection for this profile
+        jump_host = data['jump_host']
+        jump_user = data['jump_user']
+        control_socket = f"{control_dir}/{jump_user}@{jump_host}_{profile}"
+        
+        # Check if master connection exists and close it
+        if os.system(f"ssh -O check -S {control_socket} {jump_user}@{jump_host} 2>/dev/null") == 0:
+            print(f"🔐 Closing master connection to {jump_user}@{jump_host}")
+            os.system(f"ssh -O exit -S {control_socket} {jump_user}@{jump_host} 2>/dev/null")
 
 def list_profiles():
     with open('config/ssh_config.yml', 'r', encoding='utf-8') as f:
@@ -141,28 +176,28 @@ def list_profiles():
     for name in profiles:
         print(f"  - {name}")
 
-def main(cli):
+def main(args):
     config = load_config()
-    profiles = get_profile(config, cli.profile)
+    profiles = get_profile(config, args.profile)
 
-    if cli.generate:
+    if args.generate:
         lines = generate_bashrc_lines(profiles)
         write_bashrc_file("\n".join(lines))
-    elif cli.generate_stdout:
+    elif args.generate_stdout:
         print("\n".join(generate_bashrc_lines(profiles)))
-    elif cli.lint:
+    elif args.lint:
         lint_file(profiles)
-    elif cli.show:
+    elif args.show:
         show_config(profiles)
-    elif cli.status:
+    elif args.status:
         check_status(profiles)
-    elif cli.test:
+    elif args.test:
         test_tunnels(profiles)
-    elif cli.start:
+    elif args.start:
         start(profiles)
-    elif cli.stop:
-        stop_tunnel(profiles, cli.stop)
-    elif cli.stop_all:
+    elif args.stop:
+        stop_tunnel(profiles, args.stop)
+    elif args.stop_all:
         stop_all(profiles)
     else:
         print("Use --help to see available options")
