@@ -96,46 +96,37 @@ def test_tunnels(profiles):
             print("✅ Tunnel is reachable" if result == 0 else "❌ Tunnel is not responding")
 
 def start(profiles):
-    # Create control socket directory
     control_dir = "/tmp/ssh-tunnel-control"
     os.makedirs(control_dir, exist_ok=True)
     
     for profile, data in profiles.items():
         jump_host = data['jump_host']
         jump_user = data['jump_user']
-        control_socket = f"{control_dir}/{jump_user}@{jump_host}_{profile}"
-        
-        # Check if master connection exists
-        master_running = os.system(f"ssh -O check -S {control_socket} {jump_user}@{jump_host} 2>/dev/null") == 0
-        
-        if not master_running:
-            print(f"🔐 Establishing master connection to {jump_user}@{jump_host}...")
-            # Start master connection
-            master_cmd = (
-                f"ssh -f -N -M -S {control_socket} {jump_user}@{jump_host} "
-                "-o ControlPersist=10m "
-                "-o ServerAliveInterval=60 "
-                "-o ServerAliveCountMax=3 "
-                "-o ConnectTimeout=10 "
-                "-o StrictHostKeyChecking=no"
-            )
-            result = os.system(master_cmd)
-            if result != 0:
-                print(f"❌ Failed to establish master connection to {jump_host}")
-                continue
+        identity_file = os.path.expanduser(data.get('identity_file', '~/.ssh/id_ed25519'))
         
         for tunnel in data["tunnels"]:
             port = tunnel["local_port"]
-            # Check if port is already open
+            target_ip = tunnel["target_ip"]
+            target_port = tunnel["target_port"]
+            name = tunnel['name']
+            
+            # Check if port is already in use
             result = os.system(f"lsof -i tcp:{port} >/dev/null 2>&1")
             if result == 0:
-                print(f"✅ Tunnel {tunnel['name']}_{profile} is already running on port {port}")
+                print(f"✅ Tunnel {name}_{profile} already running on port {port}")
                 continue
-            print(f"🔗 Starting tunnel: {tunnel['name']}_{profile}")
+            
+            print(f"🔗 Starting tunnel: {name}_{profile}")
+            
+            # Simple direct forwarding - jump host forwards to target
             cmd = (
-                f"ssh -f -N -S {control_socket} -L {tunnel['local_port']}:{tunnel['target_ip']}:{tunnel['target_port']} "
-                f"{jump_user}@{jump_host} "
-                "-o ExitOnForwardFailure=yes"
+                f"ssh -f -N -i {identity_file} "
+                f"-L {port}:{target_ip}:{target_port} "
+                f"-o StrictHostKeyChecking=no "
+                f"-o ServerAliveInterval=60 "
+                f"-o ServerAliveCountMax=3 "
+                f"-o ExitOnForwardFailure=yes "
+                f"{jump_user}@{jump_host}"
             )
             os.system(cmd)
 

@@ -89,6 +89,12 @@ stop: _detect-cli _ensure-deps
 		echo "$(OK) Stopped tunnels for '$$P'"; \
 	fi
 
+## Stop all SSH tunnel processes (enhanced cleanup)
+stop-all: _detect-cli _ensure-deps
+	@echo "🛑 Stopping all SSH tunnel processes..."
+	@pkill -f "ssh.*-L" 2>/dev/null || echo "No SSH tunnel processes found"
+	@echo "✅ All tunnels stopped"
+
 ## Show status for the selected profile
 status: _detect-cli _ensure-deps
 	@P="$$( { $(RESOLVE_PROFILE_SH) ; } )" && \
@@ -99,7 +105,6 @@ status: _detect-cli _ensure-deps
 		$(ACTIVATE) && $(PY) $(CLI_OLD) --status --profile $$P || true; \
 	fi
 
-## Set and persist the active profile, then restart tunnels
 ## Set and persist the active profile, then restart tunnels
 switch: _detect-cli
 	@if [ -z "$(PROFILE)" ]; then \
