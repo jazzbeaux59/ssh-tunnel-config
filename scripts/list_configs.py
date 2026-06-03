@@ -52,7 +52,7 @@ def main():
         else:
             print("    rdp:     (no target_port 3389 tunnel declared)")
         for lp, tp in web_lps:
-            proto = "https" if tp in (443, 8006, 5240) else "http"
+            proto = "https" if tp in (443, 8006) else "http"
             print(f"    web:     {proto}://localhost:{lp}")
 
 if __name__ == "__main__":
